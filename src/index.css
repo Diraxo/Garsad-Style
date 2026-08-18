@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-ink-50 text-ink-900 font-body antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-ink-900;
+  }
+  ::selection {
+    @apply bg-brand-200;
+  }
+  :focus-visible {
+    outline: 2px solid theme('colors.brand.500');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Signature element: the "shelf tag" stock badge — a die-cut price-tag
+     silhouette used across the app for stock/status states, echoing a
+     physical retail tag hanging off a product. */
+  .tag {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem 0.2rem 0.7rem;
+    font-family: theme('fontFamily.mono');
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 3px 8px 8px 3px;
+  }
+  .tag::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.55;
+    transform: translateY(-50%);
+  }
+  .tag { padding-left: 1.05rem; }
+
+  .card {
+    @apply bg-white border border-ink-100 rounded-xl2 shadow-card;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-semibold text-sm px-4 py-2.5 transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink-700 border border-ink-200 hover:bg-ink-50;
+  }
+  .btn-danger {
+    @apply btn bg-crit-600 text-white hover:bg-crit-700;
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition;
+  }
+  .label {
+    @apply block text-xs font-semibold text-ink-600 mb-1.5 uppercase tracking-wide;
+  }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-toast-in { animation: toast-in 0.18s ease-out; }
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-modal-in { animation: modal-in 0.16s ease-out; }
