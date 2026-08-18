@@ -1,5 +1,8 @@
 import type { Product } from '../types'
 import { supabase } from '../lib/supabase'
+import type { Database } from '../lib/database.types'
+
+type ProductUpdate = Database['public']['Tables']['products']['Update']
 
 export interface ProductFilters {
   search?: string
@@ -115,7 +118,7 @@ export const productService = {
    * through a normal table update. `imageUrl: undefined` means "leave the
    * image alone"; pass `imageUrl: null` to explicitly clear it.
    */
-  async update(id: string, patch: Partial<Product> & { imageUrl?: string | null }): Promise<Product> {
+  async update(id: string, patch: Omit<Partial<Product>, 'imageUrl'> & { imageUrl?: string | null }): Promise<Product> {
     const { quantity, ...rest } = patch
 
     if (quantity !== undefined) {
@@ -127,7 +130,7 @@ export const productService = {
       if (rpcError) throw new Error('Unable to update stock quantity.')
     }
 
-    const dbPatch: Record<string, unknown> = {}
+    const dbPatch: ProductUpdate = {}
     if (rest.name !== undefined) dbPatch.name = rest.name
     if (rest.brand !== undefined) dbPatch.brand = rest.brand
     if (rest.categoryId !== undefined) dbPatch.category_id = rest.categoryId

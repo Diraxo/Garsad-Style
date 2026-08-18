@@ -16,11 +16,13 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { id: string; name: string; email: string; role: 'admin' | 'seller' }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
+        Relationships: []
       }
       categories: {
         Row: { id: string; name: string; created_at: string }
         Insert: { id?: string; name: string; created_at?: string }
         Update: Partial<Database['public']['Tables']['categories']['Row']>
+        Relationships: []
       }
       products: {
         Row: {
@@ -44,11 +46,21 @@ export interface Database {
           name: string; category_id: string; sku: string; purchase_cost: number; selling_price: number
         }
         Update: Partial<Database['public']['Tables']['products']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'products_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          }
+        ]
       }
       payment_methods: {
         Row: { id: string; name: string; active: boolean; created_at: string }
         Insert: { id?: string; name: string; active?: boolean; created_at?: string }
         Update: Partial<Database['public']['Tables']['payment_methods']['Row']>
+        Relationships: []
       }
       sales: {
         Row: {
@@ -61,6 +73,22 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['sales']['Row']> & { seller_id: string; payment_method_id: string; total_amount: number; total_profit: number }
         Update: Partial<Database['public']['Tables']['sales']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sales_seller_id_fkey'
+            columns: ['seller_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'sales_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          }
+        ]
       }
       sale_items: {
         Row: {
@@ -75,6 +103,22 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['sale_items']['Row']> & { sale_id: string; product_id: string; quantity: number }
         Update: Partial<Database['public']['Tables']['sale_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sale_items_sale_id_fkey'
+            columns: ['sale_id']
+            isOneToOne: false
+            referencedRelation: 'sales'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'sale_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
       }
       inventory_movements: {
         Row: {
@@ -89,6 +133,22 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['inventory_movements']['Row']> & { product_id: string; type: string; quantity_change: number; resulting_stock: number }
         Update: Partial<Database['public']['Tables']['inventory_movements']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'inventory_movements_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'inventory_movements_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
       shop_settings: {
         Row: {
@@ -102,8 +162,10 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['shop_settings']['Row']>
         Update: Partial<Database['public']['Tables']['shop_settings']['Row']>
+        Relationships: []
       }
     }
+    Views: Record<string, never>
     Functions: {
       record_sale: {
         Args: { p_product_id: string; p_quantity: number; p_actual_price: number; p_payment_method_id: string }
@@ -126,5 +188,7 @@ export interface Database {
         Returns: Database['public']['Tables']['products']['Row']
       }
     }
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }

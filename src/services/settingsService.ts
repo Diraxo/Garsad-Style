@@ -1,5 +1,8 @@
 import type { ShopSettings } from '../types'
 import { supabase } from '../lib/supabase'
+import type { Database } from '../lib/database.types'
+
+type ShopSettingsUpdate = Database['public']['Tables']['shop_settings']['Update']
 
 function mapRow(row: {
   shop_name: string; logo_initial: string; phone: string; address: string; currency: string; low_stock_threshold: number
@@ -22,7 +25,7 @@ export const settingsService = {
   },
 
   async update(patch: Partial<ShopSettings>): Promise<ShopSettings> {
-    const dbPatch: Record<string, unknown> = {}
+    const dbPatch: ShopSettingsUpdate = {}
     if (patch.shopName !== undefined) dbPatch.shop_name = patch.shopName
     if (patch.logoInitial !== undefined) dbPatch.logo_initial = patch.logoInitial
     if (patch.phone !== undefined) dbPatch.phone = patch.phone
