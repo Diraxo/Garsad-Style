@@ -56,17 +56,51 @@ export function ProductForm({
     setValues((v) => ({ ...v, [key]: val }))
   }
 
+  type NumericField = 'purchaseCost' | 'sellingPrice' | 'quantity'
+
+  function validateNumericField(key: NumericField, raw: string): string | undefined {
+    const n = Number(raw)
+    const isEmpty = raw.trim() === ''
+    if (key === 'purchaseCost') {
+      if (isEmpty || !Number.isFinite(n) || n < 0) return 'Enter a valid purchase cost.'
+    }
+    if (key === 'sellingPrice') {
+      if (isEmpty || !Number.isFinite(n) || n <= 0) return 'Enter a valid selling price.'
+    }
+    if (key === 'quantity') {
+      if (isEmpty || !Number.isFinite(n) || !Number.isInteger(n) || n < 0) return 'Enter a valid quantity.'
+    }
+    return undefined
+  }
+
+  /** Updates a numeric field and, if it currently shows an error, immediately clears it once the new value is valid. */
+  function setNumeric(key: NumericField, val: string) {
+    set(key, val)
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      if (validateNumericField(key, val)) return prev
+      const { [key]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!values.name.trim()) e.name = 'Product name is required.'
     if (!values.categoryId) e.categoryId = 'Choose a category.'
     if (!values.sku.trim()) e.sku = 'SKU is required.'
-    if (!values.purchaseCost || Number(values.purchaseCost) < 0) e.purchaseCost = 'Enter a valid purchase cost.'
-    if (!values.sellingPrice || Number(values.sellingPrice) <= 0) e.sellingPrice = 'Enter a valid selling price.'
-    if (values.quantity === '' || Number(values.quantity) < 0 || !Number.isInteger(Number(values.quantity)))
-      e.quantity = 'Enter a valid whole number.'
+    const purchaseCostError = validateNumericField('purchaseCost', values.purchaseCost)
+    if (purchaseCostError) e.purchaseCost = purchaseCostError
+    const sellingPriceError = validateNumericField('sellingPrice', values.sellingPrice)
+    if (sellingPriceError) e.sellingPrice = sellingPriceError
+    const quantityError = validateNumericField('quantity', values.quantity)
+    if (quantityError) e.quantity = quantityError
     setErrors(e)
     return Object.keys(e).length === 0
+  }
+
+  function numericInputClass(key: NumericField) {
+    return `input${errors[key] ? ' border-crit-600 focus:border-crit-600 focus:ring-crit-100' : ''}`
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -133,17 +167,44 @@ export function ProductForm({
           </div>
           <div>
             <label className="label">Purchase cost (ETB)</label>
-            <input className="input" inputMode="decimal" value={values.purchaseCost} onChange={(e) => set('purchaseCost', e.target.value)} placeholder="3000" />
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              className={numericInputClass('purchaseCost')}
+              value={values.purchaseCost}
+              onChange={(e) => setNumeric('purchaseCost', e.target.value)}
+              placeholder="3000"
+            />
             {errors.purchaseCost && <p className="text-xs text-crit-600 mt-1">{errors.purchaseCost}</p>}
           </div>
           <div>
             <label className="label">Selling price (ETB)</label>
-            <input className="input" inputMode="decimal" value={values.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="4500" />
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              className={numericInputClass('sellingPrice')}
+              value={values.sellingPrice}
+              onChange={(e) => setNumeric('sellingPrice', e.target.value)}
+              placeholder="4500"
+            />
             {errors.sellingPrice && <p className="text-xs text-crit-600 mt-1">{errors.sellingPrice}</p>}
           </div>
           <div>
             <label className="label">{initial ? 'Current quantity' : 'Initial quantity'}</label>
-            <input className="input" inputMode="numeric" value={values.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="10" />
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              className={numericInputClass('quantity')}
+              value={values.quantity}
+              onChange={(e) => setNumeric('quantity', e.target.value)}
+              placeholder="10"
+            />
             {errors.quantity && <p className="text-xs text-crit-600 mt-1">{errors.quantity}</p>}
           </div>
           <div className="sm:col-span-2">

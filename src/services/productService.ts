@@ -92,6 +92,13 @@ export const productService = {
   async create(
     input: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'initialQuantity'>
   ): Promise<Product> {
+    if (
+      !Number.isFinite(input.purchaseCost) ||
+      !Number.isFinite(input.sellingPrice) ||
+      !Number.isFinite(input.quantity)
+    ) {
+      throw new Error('Unable to create product: purchase cost, selling price, and quantity must be valid numbers.')
+    }
     const { data, error } = await supabase.rpc('create_product_with_stock', {
       p_name: input.name,
       p_brand: input.brand,
@@ -122,6 +129,9 @@ export const productService = {
     const { quantity, ...rest } = patch
 
     if (quantity !== undefined) {
+      if (!Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity < 0) {
+        throw new Error('Unable to update stock quantity: quantity must be a valid whole number.')
+      }
       const { error: rpcError } = await supabase.rpc('adjust_product_stock', {
         p_product_id: id,
         p_new_quantity: quantity,
@@ -137,8 +147,18 @@ export const productService = {
     if (rest.sku !== undefined) dbPatch.sku = rest.sku
     if (rest.size !== undefined) dbPatch.size = rest.size ?? null
     if (rest.color !== undefined) dbPatch.color = rest.color ?? null
-    if (rest.purchaseCost !== undefined) dbPatch.purchase_cost = rest.purchaseCost
-    if (rest.sellingPrice !== undefined) dbPatch.selling_price = rest.sellingPrice
+    if (rest.purchaseCost !== undefined) {
+      if (!Number.isFinite(rest.purchaseCost) || rest.purchaseCost < 0) {
+        throw new Error('Unable to update product: purchase cost must be a valid number.')
+      }
+      dbPatch.purchase_cost = rest.purchaseCost
+    }
+    if (rest.sellingPrice !== undefined) {
+      if (!Number.isFinite(rest.sellingPrice) || rest.sellingPrice <= 0) {
+        throw new Error('Unable to update product: selling price must be a valid number.')
+      }
+      dbPatch.selling_price = rest.sellingPrice
+    }
     if (rest.description !== undefined) dbPatch.description = rest.description ?? null
     if (rest.imageUrl !== undefined) dbPatch.image_url = rest.imageUrl // string or null; undefined already excluded
 
