@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { EmptyState, PageLoading } from '../../components/common/Basics'
-import { sellerService } from '../../services/sellerService'
+import { Modal } from '../../components/common/Modal'
+import { ConfirmDialog } from '../../components/common/ConfirmDialog'
+import { SellerForm, type SellerFormValues, type ServerFieldError } from './SellerForm'
+import { sellerService, type SellerRow } from '../../services/sellerService'
 import { useToast } from '../../context/ToastContext'
-import type { User } from '../../types'
+import { formatRelativeTime } from '../../lib/format'
 
-interface Row extends User {
+interface Row extends SellerRow {
   sales: number
-  lastActivity: string | null
 }
 
 export default function Sellers() {
@@ -16,17 +18,18 @@ export default function Sellers() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [formOpen, setFormOpen] = useState(false)
+  const [serverError, setServerError] = useState<ServerFieldError | null>(null)
+  const [disableTarget, setDisableTarget] = useState<Row | null>(null)
+  const [disabling, setDisabling] = useState(false)
+
   async function load() {
     setLoading(true)
     setError('')
     try {
       const sellers = await sellerService.list()
       const enriched = await Promise.all(
-        sellers.map(async (s) => ({
-          ...s,
-          sales: await sellerService.salesCount(s.id),
-          lastActivity: await sellerService.lastActivity(s.id),
-        }))
+        sellers.map(async (s) => ({ ...s, sales: await sellerService.salesCount(s.id) }))
       )
       setRows(enriched)
     } catch (e) {
@@ -37,29 +40,58 @@ export default function Sellers() {
   }
   useEffect(() => { load() }, [])
 
-  async function toggleStatus(row: Row) {
+  function openAdd() {
+    setServerError(null)
+    setFormOpen(true)
+  }
+
+  async function handleCreate(values: SellerFormValues) {
+    setServerError(null)
     try {
-      await sellerService.setStatus(row.id, row.status === 'active' ? 'disabled' : 'active')
-      show(row.status === 'active' ? 'Seller disabled.' : 'Seller enabled.')
+      await sellerService.create({ name: values.name.trim(), email: values.email.trim(), password: values.password })
+      show('Seller account created successfully.')
+      setFormOpen(false)
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to create seller. Please try again.'
+      if (message.toLowerCase().includes('already registered')) {
+        setServerError({ field: 'email', message })
+      } else {
+        show(message, 'error')
+      }
+    }
+  }
+
+  async function handleEnable(row: Row) {
+    try {
+      await sellerService.setStatus(row.id, 'active')
+      show('Seller account enabled.')
       await load()
     } catch {
       show('Unable to update this seller. Please try again.', 'error')
     }
   }
 
+  async function handleDisable() {
+    if (!disableTarget) return
+    setDisabling(true)
+    try {
+      await sellerService.setStatus(disableTarget.id, 'disabled')
+      show('Seller disabled.')
+      setDisableTarget(null)
+      await load()
+    } catch {
+      show('Unable to update this seller. Please try again.', 'error')
+    } finally {
+      setDisabling(false)
+    }
+  }
+
   return (
     <AppShell title="Sellers">
       <div className="space-y-4">
-        <div className="card p-4 flex items-start gap-3 bg-brand-50 border-brand-100">
-          <div className="h-8 w-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center shrink-0 font-display font-bold text-sm">i</div>
-          <div className="text-sm text-ink-700">
-            <p className="font-semibold text-ink-900">To add a new seller</p>
-            <p className="mt-0.5 text-ink-600">
-              Create their account in <strong>Supabase Dashboard → Authentication → Users → Add user</strong>.
-              A seller profile is created automatically the first time they log in, and they'll appear in the
-              list below. This keeps password handling entirely inside Supabase Auth.
-            </p>
-          </div>
+        <div className="flex justify-end">
+          <button className="btn-primary" onClick={openAdd}>+ Add Seller</button>
         </div>
 
         {loading ? (
@@ -67,16 +99,22 @@ export default function Sellers() {
         ) : error ? (
           <div className="card"><EmptyState title="Unable to load sellers" hint={error} /></div>
         ) : rows.length === 0 ? (
-          <div className="card"><EmptyState title="No sellers yet" hint="Add one from the Supabase Dashboard and they'll show up here." /></div>
+          <div className="card">
+            <EmptyState
+              title="No sellers yet"
+              hint="Add your first seller to get started."
+              action={<button className="btn-primary" onClick={openAdd}>+ Add Seller</button>}
+            />
+          </div>
         ) : (
           <div className="card overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-ink-400 border-b border-ink-100">
                   <th className="px-4 py-3 font-semibold">Seller</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">Sales</th>
-                  <th className="px-4 py-3 font-semibold">Last activity</th>
+                  <th className="px-4 py-3 font-semibold">Last active</th>
                   <th className="px-4 py-3 font-semibold text-right">Action</th>
                 </tr>
               </thead>
@@ -89,13 +127,16 @@ export default function Sellers() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`tag ${r.status === 'active' ? 'bg-ok-100 text-ok-700' : 'bg-ink-100 text-ink-500'}`}>
-                        {r.status === 'active' ? 'Active' : 'Disabled'}
+                        {r.status === 'active' ? 'ACTIVE' : 'DISABLED'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-ink-600">{r.sales}</td>
-                    <td className="px-4 py-3 text-ink-400 text-xs">{r.lastActivity ? new Date(r.lastActivity).toLocaleString() : '—'}</td>
+                    <td className="px-4 py-3 text-ink-400 text-xs">{r.lastSignInAt ? formatRelativeTime(r.lastSignInAt) : 'Never'}</td>
                     <td className="px-4 py-3 text-right">
-                      <button className="btn-ghost !px-2.5 !py-1.5 !text-xs" onClick={() => toggleStatus(r)}>
+                      <button
+                        className="btn-ghost !px-2.5 !py-1.5 !text-xs"
+                        onClick={() => (r.status === 'active' ? setDisableTarget(r) : handleEnable(r))}
+                      >
                         {r.status === 'active' ? 'Disable' : 'Enable'}
                       </button>
                     </td>
@@ -106,6 +147,26 @@ export default function Sellers() {
           </div>
         )}
       </div>
+
+      <Modal open={formOpen} title="Add seller" onClose={() => setFormOpen(false)}>
+        <SellerForm
+          submitLabel="Add seller"
+          serverError={serverError}
+          onSubmit={handleCreate}
+          onDismissServerError={() => setServerError(null)}
+          onCancel={() => setFormOpen(false)}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={!!disableTarget}
+        title="Disable this seller?"
+        message={`${disableTarget?.name} will no longer be able to sign in or access the shop system. Their sales history and profile will be kept, and you can re-enable them at any time.`}
+        confirmLabel="Disable"
+        loading={disabling}
+        onConfirm={handleDisable}
+        onCancel={() => setDisableTarget(null)}
+      />
     </AppShell>
   )
 }
