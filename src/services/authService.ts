@@ -15,12 +15,22 @@ function mapProfile(row: {
 
 async function fetchProfile(userId: string): Promise<User | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  if (error) console.error('[auth] profile lookup failed:', error)
   if (error || !data) return null
   return mapProfile(data)
 }
 
-function friendlyAuthError(message: string): string {
-  const m = message.toLowerCase()
+function friendlyAuthError(err: { message: string; status?: number; name?: string }): string {
+  // Always log the real error so a failure is diagnosable from the browser console.
+  console.error('[auth] sign-in failed:', err)
+  const m = err.message.toLowerCase()
+  if (
+    err.status === 0 || err.name === 'AuthRetryableFetchError' ||
+    m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network request failed')
+  ) {
+    return "Can't reach the server. Check your internet connection; if it persists, the app's database connection is misconfigured or the project is paused/deleted."
+  }
+  if (m.includes('invalid api key') || m.includes('apikey')) return 'App configuration error: invalid Supabase API key.'
   if (m.includes('invalid login') || m.includes('invalid_credentials')) return 'Incorrect email or password.'
   if (m.includes('email not confirmed')) return 'Please confirm your email before logging in.'
   if (m.includes('rate limit')) return 'Too many attempts. Please wait a moment and try again.'
@@ -30,7 +40,7 @@ function friendlyAuthError(message: string): string {
 export const authService = {
   async login(email: string, password: string): Promise<AuthResult> {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (error) return { ok: false, error: friendlyAuthError(error.message) }
+    if (error) return { ok: false, error: friendlyAuthError(error) }
     if (!data.user) return { ok: false, error: 'Could not sign in.' }
 
     const profile = await fetchProfile(data.user.id)

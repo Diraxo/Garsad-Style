@@ -12,3 +12,7 @@ supabase/.temp
 vite.config.js
 
 vite.config.d.ts
+
+# DB backups contain password hashes - never commit
+*.backup
+*.backup.gz

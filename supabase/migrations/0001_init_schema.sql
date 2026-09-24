@@ -1,7 +1,10 @@
 -- Garsad Phase 2A — 0001_init_schema.sql
 -- Core tables mapped 1:1 from src/types/index.ts
 
-create extension if not exists "pgcrypto";
+-- Supabase keeps extensions in the "extensions" schema; make sure gin_trgm_ops is resolvable.
+set search_path = public, extensions;
+create extension if not exists "pgcrypto" with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
 
 -- ─────────────────────────────────────────────────────────────
 -- profiles (role sits here, keyed to auth.users)
@@ -47,8 +50,6 @@ create table public.products (
 create index products_category_id_idx on public.products(category_id);
 create index products_sku_idx on public.products(sku);
 create index products_name_trgm_idx on public.products using gin (name gin_trgm_ops);
-
-create extension if not exists pg_trgm;
 
 -- ─────────────────────────────────────────────────────────────
 -- payment_methods

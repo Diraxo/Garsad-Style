@@ -10,6 +10,13 @@ if (!url || !key) {
   )
 }
 
+// Fail loudly (in the console) if the URL is malformed, instead of a vague login error later.
+try {
+  new URL(url)
+} catch {
+  throw new Error(`VITE_SUPABASE_URL is not a valid URL: "${url}"`)
+}
+
 // Single shared client. Only the service layer (src/services/*) should
 // import this — components talk to services, never to Supabase directly.
 export const supabase = createClient<Database>(url, key)
